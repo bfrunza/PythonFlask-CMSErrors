@@ -7,6 +7,7 @@ from logging import getLogger
 from logging.handlers import RotatingFileHandler
 from time import strftime
 from logging import INFO, WARN, ERROR
+from traceback import format_exc
 #!
 
 request_log = getLogger('werkzeug')
@@ -29,6 +30,28 @@ def after_request(response):
         access_log.info('%s - - %s "%s %s %s" %s -', request.remote_addr, timestamp, request.method, request.path, request.scheme.upper(), response.status_code)
     return response
 
+@app.context_processor
+def inject_titles():
+    titles = Content.query.with_entities(Content.slug, Content.title).join(Type).filter(Type.name == 'page')
+
+    return dict(titles=titles)
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('not_found.html'), 404
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    tb = format_exc()
+    error_log.error('%s - - %s "%s %s %s" 500 -\n%s', request.remote_addr, timestamp, request.method, request.path, request.scheme.upper(), tb)
+
+    original = getattr(e, 'original_exception', None)
+    if original is None:
+        return render_template('error.html'), 500
+
+    return render_template('error.html', error=original), 500
+
 timestamp = strftime('[%d/%b/%Y %H:%M:%S]')
 
 access_log = configure_logging('access', INFO)
+error_log = configure_logging('error', ERROR)
