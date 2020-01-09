@@ -8,6 +8,7 @@ from logging.handlers import RotatingFileHandler
 from time import strftime
 from logging import INFO, WARN, ERROR
 from traceback import format_exc
+from cms.admin.auth import unauthorized
 #!
 
 request_log = getLogger('werkzeug')
@@ -55,3 +56,8 @@ timestamp = strftime('[%d/%b/%Y %H:%M:%S]')
 
 access_log = configure_logging('access', INFO)
 error_log = configure_logging('error', ERROR)
+unauthorized_log = configure_logging('unauthorized', WARN)
+
+@unauthorized.connect
+def log_unauthorized(app, user_id, username, **kwargs):
+    unauthorized_log.warning('Unauthorized: %s %s %s', timestamp, user_id, username)
